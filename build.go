@@ -4,6 +4,7 @@ import (
 	"github.com/paketo-buildpacks/packit/v2"
 	"github.com/paketo-buildpacks/packit/v2/chronos"
 	"github.com/paketo-buildpacks/packit/v2/postal"
+	"github.com/paketo-buildpacks/packit/v2/scribe"
 	"os"
 	"path/filepath"
 	"time"
@@ -24,17 +25,15 @@ type EntryResolver interface {
 }
 
 func Build(
-	logger LogEmitter,
+	logger scribe.Emitter,
 	dependencyManager DependencyManager,
-	entryResolver EntryResolver,
-	clock chronos.Clock) packit.BuildFunc {
+	entryResolver EntryResolver) packit.BuildFunc {
 	return func(context packit.BuildContext) (packit.BuildResult, error) {
 		logger.Title("%s %s", context.BuildpackInfo.Name, context.BuildpackInfo.Version)
 		logger.Process("Resolving Composer version")
 
 		priorities := []interface{}{
 			"BP_COMPOSER_VERSION",
-			"",
 		}
 		entry, sortedEntries := entryResolver.Resolve("composer", context.Plan.Entries, priorities)
 		logger.Candidates(sortedEntries)
@@ -65,6 +64,8 @@ func Build(
 			return packit.BuildResult{}, err
 		}
 
+		clock := chronos.DefaultClock
+
 		logger.SelectedDependency(entry, dependency, clock.Now())
 
 		logger.Process("Executing build process")
@@ -84,6 +85,8 @@ func Build(
 			baseFilename = filepath.Base(dependency.URI)
 		}
 
+		logger.Debug.Subprocess("Delivered Composer filename %s", baseFilename)
+
 		err = os.Chmod(filepath.Join(composerLayer.Path, baseFilename), 0755)
 		if err != nil {
 			return packit.BuildResult{}, err
@@ -94,18 +97,21 @@ func Build(
 			return packit.BuildResult{}, err
 		}
 
-		err = os.Symlink(filepath.Join(composerLayer.Path, baseFilename), filepath.Join(composerLayer.Path, "bin", "composer"))
+		symLink := filepath.Join(composerLayer.Path, "bin", "composer")
+		logger.Debug.Subprocess("Creating Composer symlink at %s", baseFilename)
+		err = os.Symlink(filepath.Join(composerLayer.Path, baseFilename), symLink)
 		if err != nil {
 			return packit.BuildResult{}, err
 		}
 
 		composerLayer.Metadata = map[string]interface{}{
 			"dependency-sha": dependency.SHA256,
-			"built_at":       clock.Now().Format(time.RFC3339Nano),
 		}
 
 		return packit.BuildResult{
-			Layers: []packit.Layer{composerLayer},
+			Layers: []packit.Layer{
+				composerLayer,
+			},
 		}, nil
 	}
 }

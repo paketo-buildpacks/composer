@@ -2,19 +2,17 @@ package composer_test
 
 import (
 	"bytes"
+	. "github.com/onsi/gomega"
 	"github.com/paketo-buildpacks/composer"
 	"github.com/paketo-buildpacks/composer/fakes"
 	"github.com/paketo-buildpacks/packit/v2"
-	"github.com/paketo-buildpacks/packit/v2/chronos"
 	"github.com/paketo-buildpacks/packit/v2/fs"
 	"github.com/paketo-buildpacks/packit/v2/postal"
+	"github.com/paketo-buildpacks/packit/v2/scribe"
 	"github.com/sclevine/spec"
 	"os"
 	"path/filepath"
 	"testing"
-	"time"
-
-	. "github.com/onsi/gomega"
 )
 
 func testBuild(t *testing.T, context spec.G, it spec.S) {
@@ -25,9 +23,6 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 		workingDir string
 		layersDir  string
 
-		clock     chronos.Clock
-		timeStamp time.Time
-
 		buffer            *bytes.Buffer
 		dependencyManager *fakes.DependencyManager
 		entryResolver     *fakes.EntryResolver
@@ -37,7 +32,7 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 
 	it.Before(func() {
 		buffer = bytes.NewBuffer(nil)
-		logEmitter := composer.NewLogEmitter(buffer)
+		logEmitter := scribe.NewEmitter(buffer)
 
 		var err error
 		layersDir, err = os.MkdirTemp("", "layers")
@@ -49,15 +44,10 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 		cnbDir, err = os.MkdirTemp("", "cnb")
 		Expect(err).NotTo(HaveOccurred())
 
-		timeStamp = time.Now()
-		clock = chronos.NewClock(func() time.Time {
-			return timeStamp
-		})
-
 		dependencyManager = &fakes.DependencyManager{}
 		entryResolver = &fakes.EntryResolver{}
 
-		build = composer.Build(logEmitter, dependencyManager, entryResolver, clock)
+		build = composer.Build(logEmitter, dependencyManager, entryResolver)
 	})
 
 	it.After(func() {
@@ -132,7 +122,6 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 					Cache:            false,
 					Metadata: map[string]interface{}{
 						"dependency-sha": "some-sha",
-						"built_at":       timeStamp.Format(time.RFC3339Nano),
 					},
 				},
 			},
@@ -148,7 +137,6 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 			}}))
 		Expect(entryResolver.ResolveCall.Receives.Priorites).To(Equal([]interface{}{
 			"BP_COMPOSER_VERSION",
-			"",
 		}))
 		entryResolver.ResolveCall.Returns.BuildpackPlanEntry = packit.BuildpackPlanEntry{
 			Name: "composer",

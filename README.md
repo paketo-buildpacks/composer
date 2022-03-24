@@ -20,7 +20,7 @@ None
 
 ## Build
 
-Will install Composer at a location on the `$PATH` of the build image for subsequence buildpacks to use.
+Will install Composer at a location on the `$PATH` of the build or launch image for subsequent buildpacks to use.
 
 ## Integration
 
@@ -51,6 +51,21 @@ file that looks like the following:
         # build phase. If you are writing a buildpack that needs to run Composer
         # during its build process, this flag should be set to true.
         build = true
+```
+
+## Logging Configurations
+
+To configure the level of log output from the **buildpack itself**, set the
+`$BP_LOG_LEVEL` environment variable at build time either directly or through
+a [`project.toml` file](https://github.com/buildpacks/spec/blob/main/extensions/project-descriptor.md)
+If no value is set, the default value of `INFO` will be used.
+
+The options for this setting are:
+- `INFO`: (Default) log information about the detection and build processes
+- `DEBUG`: log debugging information about the detection and build processes
+
+```shell
+pack build my-app --env BP_LOG_LEVEL=DEBUG
 ```
 
 ## Usage
