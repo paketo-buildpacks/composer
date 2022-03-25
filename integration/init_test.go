@@ -69,9 +69,6 @@ func TestIntegration(t *testing.T) {
 	SetDefaultEventuallyTimeout(5 * time.Second)
 
 	suite := spec.New("Integration", spec.Report(report.Terminal{}))
-	suite("BuildAndLaunch", testBuildAndLaunch, spec.Parallel())
-	suite("BpComposerVersion", testBpComposerVersion, spec.Parallel())
-	suite("WithoutComposerJson", testWithoutComposerJson, spec.Parallel())
-	suite("testWithComposer", testWithComposer, spec.Parallel())
+	suite("BuildAndLaunch", testDefaultApp, spec.Parallel())
 	suite.Run(t)
 }

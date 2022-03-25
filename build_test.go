@@ -6,6 +6,7 @@ import (
 	"github.com/paketo-buildpacks/composer"
 	"github.com/paketo-buildpacks/composer/fakes"
 	"github.com/paketo-buildpacks/packit/v2"
+	"github.com/paketo-buildpacks/packit/v2/draft"
 	"github.com/paketo-buildpacks/packit/v2/fs"
 	"github.com/paketo-buildpacks/packit/v2/postal"
 	"github.com/paketo-buildpacks/packit/v2/scribe"
@@ -22,12 +23,14 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 		cnbDir     string
 		workingDir string
 		layersDir  string
+		dependency postal.Dependency
 
 		buffer            *bytes.Buffer
 		dependencyManager *fakes.DependencyManager
-		entryResolver     *fakes.EntryResolver
+		entryResolver     = draft.NewPlanner()
 
-		build packit.BuildFunc
+		build     packit.BuildFunc
+		buildPlan packit.BuildpackPlan
 	)
 
 	it.Before(func() {
@@ -45,27 +48,8 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 		Expect(err).NotTo(HaveOccurred())
 
 		dependencyManager = &fakes.DependencyManager{}
-		entryResolver = &fakes.EntryResolver{}
 
 		build = composer.Build(logEmitter, dependencyManager, entryResolver)
-	})
-
-	it.After(func() {
-		Expect(os.RemoveAll(layersDir)).To(Succeed())
-		Expect(os.RemoveAll(workingDir)).To(Succeed())
-		Expect(os.RemoveAll(cnbDir)).To(Succeed())
-	})
-
-	it("returns a result that installs composer", func() {
-		entryResolver.ResolveCall.Returns.BuildpackPlanEntry = packit.BuildpackPlanEntry{
-			Name: "composer",
-			Metadata: map[string]interface{}{
-				"version": "resolved-composer-dependency",
-			},
-		}
-
-		entryResolver.MergeLayerTypesCall.Returns.Launch = true
-		entryResolver.MergeLayerTypesCall.Returns.Build = true
 
 		composerArchive, err := os.CreateTemp(cnbDir, "composer-archive")
 		Expect(err).NotTo(HaveOccurred())
@@ -73,7 +57,7 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 
 		Expect(os.Chmod(composerArchive.Name(), 0777)).To(Succeed())
 
-		dependency := postal.Dependency{
+		dependency = postal.Dependency{
 			ID:      "composer",
 			Name:    composerArchiveName,
 			Version: "composer-dependency-version",
@@ -85,6 +69,26 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 			return fs.Copy(filepath.Join(cnbPath, dependency.Name), filepath.Join(layerPath, dependency.Name))
 		}
 
+		buildPlan = packit.BuildpackPlan{
+			Entries: []packit.BuildpackPlanEntry{
+				{
+					Name: "composer",
+					Metadata: map[string]interface{}{
+						"build":  true,
+						"launch": true,
+					},
+				},
+			},
+		}
+	})
+
+	it.After(func() {
+		Expect(os.RemoveAll(layersDir)).To(Succeed())
+		Expect(os.RemoveAll(workingDir)).To(Succeed())
+		Expect(os.RemoveAll(cnbDir)).To(Succeed())
+	})
+
+	it("returns a result that installs composer", func() {
 		result, err := build(packit.BuildContext{
 			WorkingDir: workingDir,
 			CNBPath:    cnbDir,
@@ -94,17 +98,8 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 				Version: "some-version",
 			},
 			Platform: packit.Platform{Path: "platform"},
-			Plan: packit.BuildpackPlan{
-				Entries: []packit.BuildpackPlanEntry{
-					{
-						Name: "composer",
-						Metadata: map[string]interface{}{
-							"launch": false,
-						},
-					},
-				},
-			},
-			Layers: packit.Layers{Path: layersDir},
+			Plan:     buildPlan,
+			Layers:   packit.Layers{Path: layersDir},
 		})
 		Expect(err).NotTo(HaveOccurred())
 
@@ -127,33 +122,6 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 			},
 		}))
 
-		Expect(entryResolver.ResolveCall.Receives.Name).To(Equal("composer"))
-		Expect(entryResolver.ResolveCall.Receives.Entries).To(Equal([]packit.BuildpackPlanEntry{
-			{
-				Name: "composer",
-				Metadata: map[string]interface{}{
-					"launch": false,
-				},
-			}}))
-		Expect(entryResolver.ResolveCall.Receives.Priorites).To(Equal([]interface{}{
-			"BP_COMPOSER_VERSION",
-		}))
-		entryResolver.ResolveCall.Returns.BuildpackPlanEntry = packit.BuildpackPlanEntry{
-			Name: "composer",
-			Metadata: map[string]interface{}{
-				"version": "resolved-composer-dependency",
-			},
-		}
-
-		Expect(entryResolver.MergeLayerTypesCall.Receives.String).To(Equal("composer"))
-		Expect(entryResolver.MergeLayerTypesCall.Receives.BuildpackPlanEntrySlice).To(Equal([]packit.BuildpackPlanEntry{
-			{
-				Name: "composer",
-				Metadata: map[string]interface{}{
-					"launch": false,
-				},
-			}}))
-
 		symLink := filepath.Join(layersDir, "composer", "bin", "composer")
 		Expect(symLink).To(BeARegularFile())
 
@@ -170,4 +138,152 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 		Expect(dependencyManager.DeliverCall.Receives.LayerPath).To(Equal(filepath.Join(layersDir, "composer")))
 		Expect(dependencyManager.DeliverCall.Receives.PlatformPath).To(Equal("platform"))
 	})
+
+	context("with build=true and launch=false", func() {
+		it.Before(func() {
+			buildPlan = packit.BuildpackPlan{
+				Entries: []packit.BuildpackPlanEntry{
+					{
+						Name: "composer",
+						Metadata: map[string]interface{}{
+							"build": true,
+						},
+					},
+				},
+			}
+		})
+
+		it("sets the layer flags appropriately", func() {
+			result, err := build(packit.BuildContext{
+				WorkingDir: workingDir,
+				CNBPath:    cnbDir,
+				Stack:      "some-stack",
+				BuildpackInfo: packit.BuildpackInfo{
+					Name:    "Some Buildpack",
+					Version: "some-version",
+				},
+				Platform: packit.Platform{Path: "platform"},
+				Plan:     buildPlan,
+				Layers:   packit.Layers{Path: layersDir},
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			Expect(result).To(Equal(packit.BuildResult{
+				Layers: []packit.Layer{
+					{
+						Name:             "composer",
+						Path:             filepath.Join(layersDir, "composer"),
+						SharedEnv:        packit.Environment{},
+						BuildEnv:         packit.Environment{},
+						LaunchEnv:        packit.Environment{},
+						ProcessLaunchEnv: map[string]packit.Environment{},
+						Build:            true,
+						Launch:           false,
+						Cache:            false,
+						Metadata: map[string]interface{}{
+							"dependency-sha": "some-sha",
+						},
+					},
+				},
+			}))
+		})
+	})
+
+	context("with build=false and launch=true", func() {
+		it.Before(func() {
+			buildPlan = packit.BuildpackPlan{
+				Entries: []packit.BuildpackPlanEntry{
+					{
+						Name: "composer",
+						Metadata: map[string]interface{}{
+							"launch": true,
+						},
+					},
+				},
+			}
+		})
+
+		it("sets the layer flags appropriately", func() {
+			result, err := build(packit.BuildContext{
+				WorkingDir: workingDir,
+				CNBPath:    cnbDir,
+				Stack:      "some-stack",
+				BuildpackInfo: packit.BuildpackInfo{
+					Name:    "Some Buildpack",
+					Version: "some-version",
+				},
+				Platform: packit.Platform{Path: "platform"},
+				Plan:     buildPlan,
+				Layers:   packit.Layers{Path: layersDir},
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			Expect(result).To(Equal(packit.BuildResult{
+				Layers: []packit.Layer{
+					{
+						Name:             "composer",
+						Path:             filepath.Join(layersDir, "composer"),
+						SharedEnv:        packit.Environment{},
+						BuildEnv:         packit.Environment{},
+						LaunchEnv:        packit.Environment{},
+						ProcessLaunchEnv: map[string]packit.Environment{},
+						Build:            false,
+						Launch:           true,
+						Cache:            false,
+						Metadata: map[string]interface{}{
+							"dependency-sha": "some-sha",
+						},
+					},
+				},
+			}))
+		})
+	})
+
+	context("with build missing and launch missing", func() {
+		it.Before(func() {
+			buildPlan = packit.BuildpackPlan{
+				Entries: []packit.BuildpackPlanEntry{
+					{
+						Name: "composer",
+					},
+				},
+			}
+		})
+
+		it("will contribute to the build phase only", func() {
+			result, err := build(packit.BuildContext{
+				WorkingDir: workingDir,
+				CNBPath:    cnbDir,
+				Stack:      "some-stack",
+				BuildpackInfo: packit.BuildpackInfo{
+					Name:    "Some Buildpack",
+					Version: "some-version",
+				},
+				Platform: packit.Platform{Path: "platform"},
+				Plan:     buildPlan,
+				Layers:   packit.Layers{Path: layersDir},
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			Expect(result).To(Equal(packit.BuildResult{
+				Layers: []packit.Layer{
+					{
+						Name:             "composer",
+						Path:             filepath.Join(layersDir, "composer"),
+						SharedEnv:        packit.Environment{},
+						BuildEnv:         packit.Environment{},
+						LaunchEnv:        packit.Environment{},
+						ProcessLaunchEnv: map[string]packit.Environment{},
+						Build:            true,
+						Launch:           false,
+						Cache:            false,
+						Metadata: map[string]interface{}{
+							"dependency-sha": "some-sha",
+						},
+					},
+				},
+			}))
+		})
+	})
+
 }

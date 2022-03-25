@@ -1,0 +1,7 @@
+[[requires]]
+    name = "composer"
+
+    [requires.metadata]
+        launch = true
+        version = "2.*"
+        version-source = "integration-test"

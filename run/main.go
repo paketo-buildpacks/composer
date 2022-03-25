@@ -11,7 +11,7 @@ import (
 )
 
 func main() {
-	logEmitter := scribe.NewEmitter(os.Stdout)
+	logEmitter := scribe.NewEmitter(os.Stdout).WithLevel(os.Getenv("BP_LOG_LEVEL"))
 	dependencyManager := postal.NewService(cargo.NewTransport())
 	entryResolver := draft.NewPlanner()
 

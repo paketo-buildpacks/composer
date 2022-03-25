@@ -37,13 +37,17 @@ file that looks like the following:
     # change without a plan for deprecation.
     name = "composer"
     
-    # The version of PHP Composer is not required.
+    # The version of this buildpack.
+    # This is not the version of the provided `composer` dependency.
     # If not specified the buildpack will provide the default version, which can
     # be seen in the buildpack.toml file.
     # Any valid semver constraint is acceptable.
     version = "0.1.0"
 
     # The PHP Composer Dist buildpack supports some non-required metadata options.
+    # If neither metadata.build or metadata.launch is provided, or if both are
+    # set to false, this buildpack will contribute only during the build phase.
+    # All fields are OPTIONAL.
     [requires.metadata]
     
         # Setting the build flag to true will ensure that Composer
@@ -51,6 +55,17 @@ file that looks like the following:
         # build phase. If you are writing a buildpack that needs to run Composer
         # during its build process, this flag should be set to true.
         build = true
+
+        # Setting the launch flag to true will ensure that Composer
+        # is available on the `$PATH` of the runtime container.
+        launch = true
+
+        # Any valid version constraint is allowed
+        version = "2.2.*"
+
+        # "version-source" will allow this buildpack to decide which "version" constraint to use
+        # such as when multiple buildpacks require `composer` with version constraints
+        version-source = ""
 ```
 
 ## Logging Configurations
@@ -80,6 +95,18 @@ This builds the buildpack's Go source using `GOOS=linux` by default. You can sup
 
 ## Configuration
 
+### `BP_COMPOSER_VERSION`
+
+The `BP_COMPOSER_VERSION` variable allows you to specify a version or contraint for the `composer` dependency.
+Any valid semver range or constraint is allowed.
+If `BP_COMPOSER_VERSION` matches a version provided by this buildpack, `composer` will be installed
+regardless of what other buildpacks have set.
+If not provided, this buildpack will install `composer` if and only if a later buildpack requires `composer`.
+
+```shell
+BP_COMPOSER_VERSION=2.2.*
+```
+
 ### `COMPOSER`
 
 The `COMPOSER` variable allows you to specify the filename of `composer.json`.
@@ -95,3 +122,4 @@ COMPOSER=./somewhere/composer-other.json
 ## TODO:
 - Add layer caching
 - Offline caching
+- Add SBOM support

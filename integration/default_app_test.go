@@ -13,7 +13,7 @@ import (
 	. "github.com/paketo-buildpacks/occam/matchers"
 )
 
-func testBuildAndLaunch(t *testing.T, context spec.G, it spec.S) {
+func testDefaultApp(t *testing.T, context spec.G, it spec.S) {
 	var (
 		Expect     = NewWithT(t).Expect
 		Eventually = NewWithT(t).Eventually
@@ -23,22 +23,29 @@ func testBuildAndLaunch(t *testing.T, context spec.G, it spec.S) {
 	)
 
 	it.Before(func() {
-		pack = occam.NewPack().WithVerbose()
+		pack = occam.NewPack().WithVerbose().WithNoColor()
 		docker = occam.NewDocker()
 	})
 
-	context("build and launch", func() {
+	context("with BP_COMPOSER_VERSION set", func() {
 		var (
 			image     occam.Image
 			container occam.Container
-			name      string
-			source    string
+
+			name   string
+			source string
+
+			env map[string]string
 		)
 
 		it.Before(func() {
 			var err error
 			name, err = occam.RandomName()
 			Expect(err).NotTo(HaveOccurred())
+
+			env = map[string]string{
+				"BP_COMPOSER_VERSION": "*",
+			}
 		})
 
 		it.After(func() {
@@ -48,19 +55,20 @@ func testBuildAndLaunch(t *testing.T, context spec.G, it spec.S) {
 			Expect(os.RemoveAll(source)).To(Succeed())
 		})
 
-		it("builds with the defaults", func() {
+		it("builds and puts `composer` on the $PATH", func() {
 			var err error
 			var logs fmt.Stringer
 
-			source, err = occam.Source(filepath.Join("testdata", "build_and_launch"))
+			source, err = occam.Source(filepath.Join("testdata", "default_app"))
 			Expect(err).NotTo(HaveOccurred())
 
-			image, logs, err = pack.WithNoColor().Build.
+			image, logs, err = pack.Build.
 				WithPullPolicy("never").
 				WithBuildpacks(
 					buildpacks.ComposerDist,
 					buildpacks.BuildPlan,
 				).
+				WithEnv(env).
 				Execute(name, source)
 			Expect(err).ToNot(HaveOccurred(), logs.String)
 
@@ -68,7 +76,10 @@ func testBuildAndLaunch(t *testing.T, context spec.G, it spec.S) {
 				MatchRegexp(fmt.Sprintf(`%s 1\.2\.3`, buildpackInfo.Buildpack.Name)),
 				"  Resolving Composer version",
 				"    Candidate version sources (in priority order):",
-				`      <unknown> -> ""`,
+				`      BP_COMPOSER_VERSION -> "*"`,
+				`      integration-test    -> "2.*"`,
+				"",
+				MatchRegexp(`Selected composer version \(using BP_COMPOSER_VERSION\): 2\.\d\.\d`),
 			))
 			Expect(logs).To(ContainLines(
 				"  Executing build process",

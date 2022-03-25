@@ -18,7 +18,6 @@ type DependencyManager interface {
 	Deliver(dependency postal.Dependency, cnbPath, layerPath, platformPath string) error
 }
 
-//go:generate faux --interface EntryResolver --output fakes/entry_resolver.go
 type EntryResolver interface {
 	Resolve(name string, entries []packit.BuildpackPlanEntry, priorites []interface{}) (packit.BuildpackPlanEntry, []packit.BuildpackPlanEntry)
 	MergeLayerTypes(string, []packit.BuildpackPlanEntry) (launch, build bool)
@@ -50,6 +49,10 @@ func Build(
 
 		composerLayer.Launch, composerLayer.Build = entryResolver.MergeLayerTypes("composer", context.Plan.Entries)
 
+		if !composerLayer.Launch && !composerLayer.Build {
+			composerLayer.Build = true
+		}
+
 		version, ok := entry.Metadata["version"].(string)
 		if !ok {
 			version = "default"
@@ -66,7 +69,14 @@ func Build(
 
 		clock := chronos.DefaultClock
 
+		originalDependencyName := dependency.Name
+		if dependency.Name == "" {
+			dependency.Name = dependency.ID
+		}
+
 		logger.SelectedDependency(entry, dependency, clock.Now())
+
+		dependency.Name = originalDependencyName
 
 		logger.Process("Executing build process")
 		logger.Subprocess("Installing Composer %s", dependency.Version)
