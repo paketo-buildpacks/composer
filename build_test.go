@@ -122,20 +122,16 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 			},
 		}))
 
-		symLink := filepath.Join(layersDir, "composer", "bin", "composer")
-		Expect(symLink).To(BeARegularFile())
+		binary := filepath.Join(layersDir, "composer", "bin", dependency.Name)
+		Expect(binary).To(BeARegularFile())
 
-		absolutePath, err := filepath.EvalSymlinks(symLink)
-		Expect(err).NotTo(HaveOccurred())
-		Expect(absolutePath).To(MatchRegexp(`composer\/composer-archive.*`))
-
-		stat, err := os.Stat(absolutePath)
+		stat, err := os.Stat(binary)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(stat.Mode()).To(Equal(os.FileMode(0755)))
 
 		Expect(dependencyManager.DeliverCall.Receives.Dependency).To(Equal(dependency))
 		Expect(dependencyManager.DeliverCall.Receives.CnbPath).To(Equal(cnbDir))
-		Expect(dependencyManager.DeliverCall.Receives.LayerPath).To(Equal(filepath.Join(layersDir, "composer")))
+		Expect(dependencyManager.DeliverCall.Receives.LayerPath).To(Equal(filepath.Join(layersDir, "composer", "bin")))
 		Expect(dependencyManager.DeliverCall.Receives.PlatformPath).To(Equal("platform"))
 	})
 

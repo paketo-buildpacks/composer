@@ -69,20 +69,19 @@ func Build(
 
 		clock := chronos.DefaultClock
 
-		originalDependencyName := dependency.Name
-		if dependency.Name == "" {
-			dependency.Name = dependency.ID
-		}
-
 		logger.SelectedDependency(entry, dependency, clock.Now())
-
-		dependency.Name = originalDependencyName
 
 		logger.Process("Executing build process")
 		logger.Subprocess("Installing Composer %s", dependency.Version)
 
+		layerBinPath := filepath.Join(composerLayer.Path, "bin")
+		err = os.MkdirAll(layerBinPath, os.ModePerm)
+		if err != nil {
+			return packit.BuildResult{}, err
+		}
+
 		duration, err := clock.Measure(func() error {
-			return dependencyManager.Deliver(dependency, context.CNBPath, composerLayer.Path, context.Platform.Path)
+			return dependencyManager.Deliver(dependency, context.CNBPath, layerBinPath, context.Platform.Path)
 		})
 		if err != nil {
 			return packit.BuildResult{}, err
@@ -90,26 +89,11 @@ func Build(
 		logger.Action("Completed in %s", duration.Round(time.Millisecond))
 		logger.Break()
 
-		baseFilename := dependency.Name
-		if baseFilename == "" {
-			baseFilename = filepath.Base(dependency.URI)
-		}
+		fullFilename := filepath.Join(layerBinPath, filepath.Base(dependency.Name))
 
-		logger.Debug.Subprocess("Delivered Composer filename %s", baseFilename)
+		logger.Debug.Subprocess("Delivered Composer filename %s", fullFilename)
 
-		err = os.Chmod(filepath.Join(composerLayer.Path, baseFilename), 0755)
-		if err != nil {
-			return packit.BuildResult{}, err
-		}
-
-		err = os.MkdirAll(filepath.Join(composerLayer.Path, "bin"), os.ModePerm)
-		if err != nil {
-			return packit.BuildResult{}, err
-		}
-
-		symLink := filepath.Join(composerLayer.Path, "bin", "composer")
-		logger.Debug.Subprocess("Creating Composer symlink at %s", baseFilename)
-		err = os.Symlink(filepath.Join(composerLayer.Path, baseFilename), symLink)
+		err = os.Chmod(fullFilename, 0755)
 		if err != nil {
 			return packit.BuildResult{}, err
 		}
