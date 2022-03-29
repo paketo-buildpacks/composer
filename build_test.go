@@ -29,8 +29,8 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 		dependencyManager *fakes.DependencyManager
 		entryResolver     = draft.NewPlanner()
 
-		build     packit.BuildFunc
-		buildPlan packit.BuildpackPlan
+		build         packit.BuildFunc
+		buildpackPlan packit.BuildpackPlan
 	)
 
 	it.Before(func() {
@@ -69,7 +69,7 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 			return fs.Copy(filepath.Join(cnbPath, dependency.Name), filepath.Join(layerPath, dependency.Name))
 		}
 
-		buildPlan = packit.BuildpackPlan{
+		buildpackPlan = packit.BuildpackPlan{
 			Entries: []packit.BuildpackPlanEntry{
 				{
 					Name: "composer",
@@ -98,7 +98,7 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 				Version: "some-version",
 			},
 			Platform: packit.Platform{Path: "platform"},
-			Plan:     buildPlan,
+			Plan:     buildpackPlan,
 			Layers:   packit.Layers{Path: layersDir},
 		})
 		Expect(err).NotTo(HaveOccurred())
@@ -137,7 +137,7 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 
 	context("with build=true and launch=false", func() {
 		it.Before(func() {
-			buildPlan = packit.BuildpackPlan{
+			buildpackPlan = packit.BuildpackPlan{
 				Entries: []packit.BuildpackPlanEntry{
 					{
 						Name: "composer",
@@ -159,7 +159,7 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 					Version: "some-version",
 				},
 				Platform: packit.Platform{Path: "platform"},
-				Plan:     buildPlan,
+				Plan:     buildpackPlan,
 				Layers:   packit.Layers{Path: layersDir},
 			})
 			Expect(err).NotTo(HaveOccurred())
@@ -187,7 +187,7 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 
 	context("with build=false and launch=true", func() {
 		it.Before(func() {
-			buildPlan = packit.BuildpackPlan{
+			buildpackPlan = packit.BuildpackPlan{
 				Entries: []packit.BuildpackPlanEntry{
 					{
 						Name: "composer",
@@ -209,7 +209,7 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 					Version: "some-version",
 				},
 				Platform: packit.Platform{Path: "platform"},
-				Plan:     buildPlan,
+				Plan:     buildpackPlan,
 				Layers:   packit.Layers{Path: layersDir},
 			})
 			Expect(err).NotTo(HaveOccurred())
@@ -237,7 +237,7 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 
 	context("with build missing and launch missing", func() {
 		it.Before(func() {
-			buildPlan = packit.BuildpackPlan{
+			buildpackPlan = packit.BuildpackPlan{
 				Entries: []packit.BuildpackPlanEntry{
 					{
 						Name: "composer",
@@ -256,7 +256,7 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 					Version: "some-version",
 				},
 				Platform: packit.Platform{Path: "platform"},
-				Plan:     buildPlan,
+				Plan:     buildpackPlan,
 				Layers:   packit.Layers{Path: layersDir},
 			})
 			Expect(err).NotTo(HaveOccurred())
