@@ -9,7 +9,7 @@ import (
 
 func TestUnitcomposer(t *testing.T) {
 	suite := spec.New("composer", spec.Report(report.Terminal{}))
-	suite("Detect", testDetect)
+	suite("Detect", testDetect, spec.Sequential())
 	suite("Build", testBuild)
 	suite.Run(t)
 }
