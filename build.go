@@ -53,10 +53,8 @@ func Build(
 			composerLayer.Build = true
 		}
 
-		version, ok := entry.Metadata["version"].(string)
-		if !ok {
-			version = "default"
-		}
+		// version = "" is entirely fine
+		version, _ := entry.Metadata["version"].(string)
 
 		dependency, err := dependencyManager.Resolve(
 			filepath.Join(context.CNBPath, "buildpack.toml"),
@@ -91,7 +89,7 @@ func Build(
 
 		fullFilename := filepath.Join(layerBinPath, filepath.Base(dependency.Name))
 
-		logger.Debug.Subprocess("Delivered Composer filename %s", fullFilename)
+		logger.Debug.Subprocess("Composer installed at %s", fullFilename)
 
 		err = os.Chmod(fullFilename, 0755)
 		if err != nil {
@@ -101,6 +99,8 @@ func Build(
 		composerLayer.Metadata = map[string]interface{}{
 			"dependency-sha": dependency.SHA256,
 		}
+
+		logger.Debug.Subprocess("Composer layer SHA256 is %s", dependency.SHA256)
 
 		return packit.BuildResult{
 			Layers: []packit.Layer{
