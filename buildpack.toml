@@ -1,4 +1,4 @@
-api = "0.6"
+api = "0.7"
 
 [buildpack]
   description = "A buildpack for installing Composer, a dependency manager for PHP"
