@@ -65,6 +65,7 @@ func testDefaultApp(t *testing.T, context spec.G, it spec.S) {
 			image, logs, err = pack.Build.
 				WithPullPolicy("never").
 				WithBuildpacks(
+					buildpacks.PhpDist,
 					buildpacks.ComposerDist,
 					buildpacks.BuildPlan,
 				).
@@ -88,7 +89,7 @@ func testDefaultApp(t *testing.T, context spec.G, it spec.S) {
 			))
 
 			container, err = docker.Container.Run.
-				WithCommand("which composer && composer").
+				WithCommand("which composer && composer --version").
 				Execute(image.ID)
 			Expect(err).ToNot(HaveOccurred())
 
@@ -98,7 +99,7 @@ func testDefaultApp(t *testing.T, context spec.G, it spec.S) {
 				return cLogs.String()
 			}).Should(And(
 				ContainSubstring("/layers/paketo-buildpacks_composer-dist/composer/bin/composer"),
-				ContainSubstring("/usr/bin/env: 'php': No such file or directory"),
+				MatchRegexp(`Composer version \d\.\d\.\d`),
 			))
 		})
 	})
