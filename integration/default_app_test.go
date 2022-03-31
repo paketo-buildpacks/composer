@@ -98,7 +98,7 @@ func testDefaultApp(t *testing.T, context spec.G, it spec.S) {
 				Expect(err).NotTo(HaveOccurred())
 				return cLogs.String()
 			}).Should(And(
-				ContainSubstring("/layers/paketo-buildpacks_composer-dist/composer/bin/composer"),
+				ContainSubstring("/layers/paketo-buildpacks_composer/composer/bin/composer"),
 				MatchRegexp(`Composer version \d\.\d\.\d`),
 			))
 		})
