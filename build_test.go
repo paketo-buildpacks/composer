@@ -6,7 +6,6 @@ import (
 	"github.com/paketo-buildpacks/composer"
 	"github.com/paketo-buildpacks/composer/fakes"
 	"github.com/paketo-buildpacks/packit/v2"
-	"github.com/paketo-buildpacks/packit/v2/draft"
 	"github.com/paketo-buildpacks/packit/v2/fs"
 	"github.com/paketo-buildpacks/packit/v2/postal"
 	"github.com/paketo-buildpacks/packit/v2/scribe"
@@ -27,7 +26,6 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 
 		buffer            *bytes.Buffer
 		dependencyManager *fakes.DependencyManager
-		entryResolver     = draft.NewPlanner()
 
 		build         packit.BuildFunc
 		buildpackPlan packit.BuildpackPlan
@@ -49,7 +47,7 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 
 		dependencyManager = &fakes.DependencyManager{}
 
-		build = composer.Build(logEmitter, dependencyManager, entryResolver)
+		build = composer.Build(logEmitter, dependencyManager)
 
 		composerArchive, err := os.CreateTemp(cnbDir, "composer-archive")
 		Expect(err).NotTo(HaveOccurred())

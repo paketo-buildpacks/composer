@@ -3,6 +3,7 @@ package composer
 import (
 	"github.com/paketo-buildpacks/packit/v2"
 	"github.com/paketo-buildpacks/packit/v2/chronos"
+	"github.com/paketo-buildpacks/packit/v2/draft"
 	"github.com/paketo-buildpacks/packit/v2/postal"
 	"github.com/paketo-buildpacks/packit/v2/scribe"
 	"os"
@@ -18,18 +19,14 @@ type DependencyManager interface {
 	Deliver(dependency postal.Dependency, cnbPath, layerPath, platformPath string) error
 }
 
-type EntryResolver interface {
-	Resolve(name string, entries []packit.BuildpackPlanEntry, priorites []interface{}) (packit.BuildpackPlanEntry, []packit.BuildpackPlanEntry)
-	MergeLayerTypes(string, []packit.BuildpackPlanEntry) (launch, build bool)
-}
-
 func Build(
 	logger scribe.Emitter,
-	dependencyManager DependencyManager,
-	entryResolver EntryResolver) packit.BuildFunc {
+	dependencyManager DependencyManager) packit.BuildFunc {
 	return func(context packit.BuildContext) (packit.BuildResult, error) {
 		logger.Title("%s %s", context.BuildpackInfo.Name, context.BuildpackInfo.Version)
 		logger.Process("Resolving Composer version")
+
+		entryResolver := draft.NewPlanner()
 
 		priorities := []interface{}{
 			"BP_COMPOSER_VERSION",
