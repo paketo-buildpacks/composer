@@ -44,10 +44,9 @@ file that looks like the following:
     # Any valid semver constraint is acceptable.
     version = "0.1.0"
 
-    # The PHP Composer Dist buildpack supports some non-required metadata options.
-    # If neither metadata.build or metadata.launch is provided, or if both are
-    # set to false, this buildpack will contribute only during the build phase.
-    # All fields are OPTIONAL.
+    # The PHP Composer Dist buildpack requires some additional metadata options.
+    # If neither metadata.build or metadata.launch is provided, this buidpack will contribute
+    # an ignored layer
     [requires.metadata]
     
         # Setting the build flag to true will ensure that Composer
@@ -118,8 +117,3 @@ For more information, please reference the [composer docs](https://getcomposer.o
 ```shell
 COMPOSER=./somewhere/composer-other.json
 ```
-
-## TODO:
-- Add layer caching
-- Offline caching
-- Add SBOM support

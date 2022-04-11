@@ -2,6 +2,10 @@ package composer_test
 
 import (
 	"bytes"
+	"os"
+	"path/filepath"
+	"testing"
+
 	. "github.com/onsi/gomega"
 	"github.com/paketo-buildpacks/composer"
 	"github.com/paketo-buildpacks/composer/fakes"
@@ -10,9 +14,6 @@ import (
 	"github.com/paketo-buildpacks/packit/v2/postal"
 	"github.com/paketo-buildpacks/packit/v2/scribe"
 	"github.com/sclevine/spec"
-	"os"
-	"path/filepath"
-	"testing"
 )
 
 func testBuild(t *testing.T, context spec.G, it spec.S) {
@@ -244,7 +245,7 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 			}
 		})
 
-		it("will contribute to the build phase only", func() {
+		it("will contribute an ignored layer", func() {
 			result, err := build(packit.BuildContext{
 				WorkingDir: workingDir,
 				CNBPath:    cnbDir,
@@ -268,7 +269,7 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 						BuildEnv:         packit.Environment{},
 						LaunchEnv:        packit.Environment{},
 						ProcessLaunchEnv: map[string]packit.Environment{},
-						Build:            true,
+						Build:            false,
 						Launch:           false,
 						Cache:            false,
 						Metadata: map[string]interface{}{
@@ -279,5 +280,4 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 			}))
 		})
 	})
-
 }

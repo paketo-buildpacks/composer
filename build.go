@@ -1,14 +1,15 @@
 package composer
 
 import (
+	"os"
+	"path/filepath"
+	"time"
+
 	"github.com/paketo-buildpacks/packit/v2"
 	"github.com/paketo-buildpacks/packit/v2/chronos"
 	"github.com/paketo-buildpacks/packit/v2/draft"
 	"github.com/paketo-buildpacks/packit/v2/postal"
 	"github.com/paketo-buildpacks/packit/v2/scribe"
-	"os"
-	"path/filepath"
-	"time"
 )
 
 // Note that Go 1.18 requires faux 0.21.0 (https://github.com/ryanmoran/faux/releases/tag/v0.21.0)
@@ -45,10 +46,6 @@ func Build(
 		}
 
 		composerLayer.Launch, composerLayer.Build = entryResolver.MergeLayerTypes("composer", context.Plan.Entries)
-
-		if !composerLayer.Launch && !composerLayer.Build {
-			composerLayer.Build = true
-		}
 
 		// version = "" is entirely fine
 		version, _ := entry.Metadata["version"].(string)
