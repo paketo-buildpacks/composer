@@ -40,12 +40,7 @@ func Build(
 			return packit.BuildResult{}, err
 		}
 
-		composerLayer, err = composerLayer.Reset()
-		if err != nil {
-			return packit.BuildResult{}, err
-		}
-
-		composerLayer.Launch, composerLayer.Build = entryResolver.MergeLayerTypes("composer", context.Plan.Entries)
+		launch, build := entryResolver.MergeLayerTypes("composer", context.Plan.Entries)
 
 		// version = "" is entirely fine
 		version, _ := entry.Metadata["version"].(string)
@@ -63,8 +58,28 @@ func Build(
 
 		logger.SelectedDependency(entry, dependency, clock.Now())
 
+		if cachedSHA, ok := composerLayer.Metadata["dependency-sha"].(string); ok && cachedSHA == dependency.SHA256 {
+			logger.Process("Reusing cached layer %s", composerLayer.Path)
+			logger.Break()
+
+			composerLayer.Launch, composerLayer.Build = launch, build
+
+			return packit.BuildResult{
+				Layers: []packit.Layer{
+					composerLayer,
+				},
+			}, nil
+		}
+
 		logger.Process("Executing build process")
 		logger.Subprocess("Installing Composer %s", dependency.Version)
+
+		composerLayer, err = composerLayer.Reset()
+		if err != nil {
+			return packit.BuildResult{}, err
+		}
+
+		composerLayer.Launch, composerLayer.Build = launch, build
 
 		layerBinPath := filepath.Join(composerLayer.Path, "bin")
 		err = os.MkdirAll(layerBinPath, os.ModePerm)

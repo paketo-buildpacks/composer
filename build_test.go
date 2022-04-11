@@ -2,6 +2,7 @@ package composer_test
 
 import (
 	"bytes"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -120,6 +121,8 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 				},
 			},
 		}))
+
+		Expect(buffer).To(ContainSubstring("Executing build process"))
 
 		binary := filepath.Join(layersDir, "composer", "bin", dependency.Name)
 		Expect(binary).To(BeARegularFile())
@@ -274,6 +277,55 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 						Cache:            false,
 						Metadata: map[string]interface{}{
 							"dependency-sha": "some-sha",
+						},
+					},
+				},
+			}))
+		})
+	})
+
+	context("when the layer is cached", func() {
+		it.Before(func() {
+			dependencyManager.ResolveCall.Returns.Dependency.SHA256 = "cached-sha"
+
+			err := ioutil.WriteFile(filepath.Join(layersDir, "composer.toml"),
+				[]byte(`[metadata]
+dependency-sha = "cached-sha"
+`), os.ModePerm)
+			Expect(err).NotTo(HaveOccurred())
+		})
+
+		it("reuses the cached version of the SDK dependency", func() {
+			result, err := build(packit.BuildContext{
+				WorkingDir: workingDir,
+				CNBPath:    cnbDir,
+				Stack:      "some-stack",
+				BuildpackInfo: packit.BuildpackInfo{
+					Name:    "Some Buildpack",
+					Version: "some-version",
+				},
+				Platform: packit.Platform{Path: "platform"},
+				Plan:     buildpackPlan,
+				Layers:   packit.Layers{Path: layersDir},
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			Expect(buffer).NotTo(ContainSubstring("Executing build process"))
+
+			Expect(result).To(Equal(packit.BuildResult{
+				Layers: []packit.Layer{
+					{
+						Name:             "composer",
+						Path:             filepath.Join(layersDir, "composer"),
+						SharedEnv:        packit.Environment{},
+						BuildEnv:         packit.Environment{},
+						LaunchEnv:        packit.Environment{},
+						ProcessLaunchEnv: map[string]packit.Environment{},
+						Build:            true,
+						Launch:           true,
+						Cache:            false,
+						Metadata: map[string]interface{}{
+							"dependency-sha": "cached-sha",
 						},
 					},
 				},

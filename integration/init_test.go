@@ -75,5 +75,6 @@ func TestIntegration(t *testing.T) {
 
 	suite := spec.New("Integration", spec.Report(report.Terminal{}))
 	suite("BuildAndLaunch", testDefaultApp, spec.Parallel())
+	suite("LayerReuse", testReusingLayerRebuild)
 	suite.Run(t)
 }
