@@ -66,7 +66,7 @@ func testDefaultApp(t *testing.T, context spec.G, it spec.S) {
 				WithPullPolicy("never").
 				WithBuildpacks(
 					buildpacks.PhpDist,
-					buildpacks.ComposerDist,
+					buildpacks.Composer,
 					buildpacks.BuildPlan,
 				).
 				WithEnv(env).

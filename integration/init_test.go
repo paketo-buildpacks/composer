@@ -29,9 +29,9 @@ var buildpackInfo struct {
 }
 
 var buildpacks struct {
-	BuildPlan    string `json:"build-plan"`
-	PhpDist      string `json:"php-dist"`
-	ComposerDist string
+	BuildPlan string `json:"build-plan"`
+	PhpDist   string `json:"php-dist"`
+	Composer  string
 }
 
 func TestIntegration(t *testing.T) {
@@ -66,7 +66,7 @@ func TestIntegration(t *testing.T) {
 	root, err := filepath.Abs("./..")
 	Expect(err).ToNot(HaveOccurred())
 
-	buildpacks.ComposerDist, err = buildpackStore.Get.
+	buildpacks.Composer, err = buildpackStore.Get.
 		WithVersion("1.2.3").
 		Execute(root)
 	Expect(err).NotTo(HaveOccurred())
