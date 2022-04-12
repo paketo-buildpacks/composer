@@ -29,9 +29,16 @@ var buildpackInfo struct {
 }
 
 var buildpacks struct {
+	BuildPlan       string
+	PhpDist         string
+	PhpDistOffline  string
+	Composer        string
+	ComposerOffline string
+}
+
+var integration struct {
 	BuildPlan string `json:"build-plan"`
 	PhpDist   string `json:"php-dist"`
-	Composer  string
 }
 
 func TestIntegration(t *testing.T) {
@@ -44,7 +51,7 @@ func TestIntegration(t *testing.T) {
 	file, err := os.Open("../integration.json")
 	Expect(err).NotTo(HaveOccurred())
 
-	Expect(json.NewDecoder(file).Decode(&buildpacks)).To(Succeed())
+	Expect(json.NewDecoder(file).Decode(&integration)).To(Succeed())
 	Expect(file.Close()).To(Succeed())
 
 	file, err = os.Open("../buildpack.toml")
@@ -56,11 +63,16 @@ func TestIntegration(t *testing.T) {
 	buildpackStore := occam.NewBuildpackStore()
 
 	buildpacks.BuildPlan, err = buildpackStore.Get.
-		Execute(buildpacks.BuildPlan)
+		Execute(integration.BuildPlan)
 	Expect(err).NotTo(HaveOccurred())
 
 	buildpacks.PhpDist, err = buildpackStore.Get.
-		Execute(buildpacks.PhpDist)
+		Execute(integration.PhpDist)
+	Expect(err).NotTo(HaveOccurred())
+
+	buildpacks.PhpDistOffline, err = buildpackStore.Get.
+		WithOfflineDependencies().
+		Execute(integration.PhpDist)
 	Expect(err).NotTo(HaveOccurred())
 
 	root, err := filepath.Abs("./..")
@@ -71,10 +83,17 @@ func TestIntegration(t *testing.T) {
 		Execute(root)
 	Expect(err).NotTo(HaveOccurred())
 
+	buildpacks.ComposerOffline, err = buildpackStore.Get.
+		WithOfflineDependencies().
+		WithVersion("1.2.3").
+		Execute(root)
+	Expect(err).NotTo(HaveOccurred())
+
 	SetDefaultEventuallyTimeout(5 * time.Second)
 
 	suite := spec.New("Integration", spec.Report(report.Terminal{}))
 	suite("BuildAndLaunch", testDefaultApp, spec.Parallel())
 	suite("LayerReuse", testReusingLayerRebuild)
+	suite("Offline", testOffline)
 	suite.Run(t)
 }
