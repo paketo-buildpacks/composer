@@ -62,7 +62,7 @@ func Build(
 			logger.Process("Reusing cached layer %s", composerLayer.Path)
 			logger.Break()
 
-			composerLayer.Launch, composerLayer.Build = launch, build
+			composerLayer.Launch, composerLayer.Build, composerLayer.Cache = launch, build, build
 
 			return packit.BuildResult{
 				Layers: []packit.Layer{
@@ -79,7 +79,7 @@ func Build(
 			return packit.BuildResult{}, err
 		}
 
-		composerLayer.Launch, composerLayer.Build = launch, build
+		composerLayer.Launch, composerLayer.Build, composerLayer.Cache = launch, build, build
 
 		layerBinPath := filepath.Join(composerLayer.Path, "bin")
 		err = os.MkdirAll(layerBinPath, os.ModePerm)

@@ -114,7 +114,7 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 					ProcessLaunchEnv: map[string]packit.Environment{},
 					Build:            true,
 					Launch:           true,
-					Cache:            false,
+					Cache:            true,
 					Metadata: map[string]interface{}{
 						"dependency-sha": "some-sha",
 					},
@@ -177,7 +177,7 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 						ProcessLaunchEnv: map[string]packit.Environment{},
 						Build:            true,
 						Launch:           false,
-						Cache:            false,
+						Cache:            true,
 						Metadata: map[string]interface{}{
 							"dependency-sha": "some-sha",
 						},
@@ -323,7 +323,7 @@ dependency-sha = "cached-sha"
 						ProcessLaunchEnv: map[string]packit.Environment{},
 						Build:            true,
 						Launch:           true,
-						Cache:            false,
+						Cache:            true,
 						Metadata: map[string]interface{}{
 							"dependency-sha": "cached-sha",
 						},
