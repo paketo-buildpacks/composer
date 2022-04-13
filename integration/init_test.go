@@ -99,6 +99,5 @@ func TestIntegration(t *testing.T) {
 	suite("BuildAndLaunch", testDefaultApp, spec.Parallel())
 	suite("LayerReuse", testReusingLayerRebuild)
 	suite("Offline", testOffline)
-	suite("SBOM", testSbom)
 	suite.Run(t)
 }
