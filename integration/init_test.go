@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -18,8 +19,9 @@ import (
 
 var buildpackInfo struct {
 	Buildpack struct {
-		ID   string
-		Name string
+		ID     string
+		Name   string
+		PackId string
 	}
 	Metadata struct {
 		Dependencies []struct {
@@ -60,6 +62,8 @@ func TestIntegration(t *testing.T) {
 	_, err = toml.NewDecoder(file).Decode(&buildpackInfo)
 	Expect(err).NotTo(HaveOccurred())
 
+	buildpackInfo.Buildpack.PackId = strings.ReplaceAll(buildpackInfo.Buildpack.ID, "/", "_")
+
 	buildpackStore := occam.NewBuildpackStore()
 
 	buildpacks.BuildPlan, err = buildpackStore.Get.
@@ -95,5 +99,6 @@ func TestIntegration(t *testing.T) {
 	suite("BuildAndLaunch", testDefaultApp, spec.Parallel())
 	suite("LayerReuse", testReusingLayerRebuild)
 	suite("Offline", testOffline)
+	suite("SBOM", testSbom)
 	suite.Run(t)
 }
