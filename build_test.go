@@ -103,13 +103,17 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 			CNBPath:    cnbDir,
 			Stack:      "some-stack",
 			BuildpackInfo: packit.BuildpackInfo{
-				Name:    "Some Buildpack",
-				Version: "some-version",
+				Name:        "Some Buildpack",
+				Version:     "some-version",
+				SBOMFormats: []string{sbom.CycloneDXFormat, sbom.SPDXFormat},
 			},
 			Platform: packit.Platform{Path: "platform"},
 			Plan:     buildpackPlan,
 			Layers:   packit.Layers{Path: layersDir},
 		})
+		Expect(err).NotTo(HaveOccurred())
+
+		expectedFormats, err := sbom.SBOM{}.InFormats(sbom.CycloneDXFormat, sbom.SPDXFormat)
 		Expect(err).NotTo(HaveOccurred())
 
 		Expect(result).To(Equal(packit.BuildResult{
@@ -127,7 +131,7 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 					Metadata: map[string]interface{}{
 						"dependency-sha": "some-sha",
 					},
-					SBOM: sbom.Formatter{},
+					SBOM: expectedFormats,
 				},
 			},
 			Launch: packit.LaunchMetadata{
@@ -157,6 +161,18 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 		Expect(dependencyManager.DeliverCall.Receives.PlatformPath).To(Equal("platform"))
 		Expect(sbomGenerator.GenerateFromDependencyCall.Receives.Dependency).To(Equal(dependency))
 		Expect(sbomGenerator.GenerateFromDependencyCall.Receives.Dir).To(Equal(filepath.Join(layersDir, "composer")))
+
+		Expect(result.Layers[0].SBOM.Formats()).To(Equal([]packit.SBOMFormat{
+			{
+				Extension: sbom.Format(sbom.CycloneDXFormat).Extension(),
+				Content:   sbom.NewFormattedReader(sbom.SBOM{}, sbom.CycloneDXFormat),
+			},
+			{
+				Extension: sbom.Format(sbom.SPDXFormat).Extension(),
+				Content:   sbom.NewFormattedReader(sbom.SBOM{}, sbom.SPDXFormat),
+			},
+		}))
+
 	})
 
 	context("with build=true and launch=false", func() {
