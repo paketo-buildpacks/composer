@@ -13,6 +13,7 @@ import (
 	"github.com/paketo-buildpacks/packit/v2"
 	"github.com/paketo-buildpacks/packit/v2/fs"
 	"github.com/paketo-buildpacks/packit/v2/postal"
+	"github.com/paketo-buildpacks/packit/v2/sbom"
 	"github.com/paketo-buildpacks/packit/v2/scribe"
 	"github.com/sclevine/spec"
 )
@@ -28,6 +29,7 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 
 		buffer            *bytes.Buffer
 		dependencyManager *fakes.DependencyManager
+		sbomGenerator     *fakes.SBOMGenerator
 
 		build         packit.BuildFunc
 		buildpackPlan packit.BuildpackPlan
@@ -48,8 +50,10 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 		Expect(err).NotTo(HaveOccurred())
 
 		dependencyManager = &fakes.DependencyManager{}
+		sbomGenerator = &fakes.SBOMGenerator{}
+		sbomGenerator.GenerateFromDependencyCall.Returns.SBOM = sbom.SBOM{}
 
-		build = composer.Build(logEmitter, dependencyManager)
+		build = composer.Build(logEmitter, dependencyManager, sbomGenerator)
 
 		composerArchive, err := os.CreateTemp(cnbDir, "composer-archive")
 		Expect(err).NotTo(HaveOccurred())
@@ -67,6 +71,11 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 		dependencyManager.ResolveCall.Returns.Dependency = dependency
 		dependencyManager.DeliverCall.Stub = func(dependency postal.Dependency, cnbPath, layerPath, _ string) error {
 			return fs.Copy(filepath.Join(cnbPath, dependency.Name), filepath.Join(layerPath, dependency.Name))
+		}
+		dependencyManager.GenerateBillOfMaterialsCall.Returns.BOMEntrySlice = []packit.BOMEntry{
+			{
+				Name: "composer",
+			},
 		}
 
 		buildpackPlan = packit.BuildpackPlan{
@@ -94,13 +103,17 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 			CNBPath:    cnbDir,
 			Stack:      "some-stack",
 			BuildpackInfo: packit.BuildpackInfo{
-				Name:    "Some Buildpack",
-				Version: "some-version",
+				Name:        "Some Buildpack",
+				Version:     "some-version",
+				SBOMFormats: []string{sbom.CycloneDXFormat, sbom.SPDXFormat},
 			},
 			Platform: packit.Platform{Path: "platform"},
 			Plan:     buildpackPlan,
 			Layers:   packit.Layers{Path: layersDir},
 		})
+		Expect(err).NotTo(HaveOccurred())
+
+		expectedFormats, err := sbom.SBOM{}.InFormats(sbom.CycloneDXFormat, sbom.SPDXFormat)
 		Expect(err).NotTo(HaveOccurred())
 
 		Expect(result).To(Equal(packit.BuildResult{
@@ -118,6 +131,17 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 					Metadata: map[string]interface{}{
 						"dependency-sha": "some-sha",
 					},
+					SBOM: expectedFormats,
+				},
+			},
+			Launch: packit.LaunchMetadata{
+				BOM: []packit.BOMEntry{
+					{Name: "composer"},
+				},
+			},
+			Build: packit.BuildMetadata{
+				BOM: []packit.BOMEntry{
+					{Name: "composer"},
 				},
 			},
 		}))
@@ -135,6 +159,20 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 		Expect(dependencyManager.DeliverCall.Receives.CnbPath).To(Equal(cnbDir))
 		Expect(dependencyManager.DeliverCall.Receives.LayerPath).To(Equal(filepath.Join(layersDir, "composer", "bin")))
 		Expect(dependencyManager.DeliverCall.Receives.PlatformPath).To(Equal("platform"))
+		Expect(sbomGenerator.GenerateFromDependencyCall.Receives.Dependency).To(Equal(dependency))
+		Expect(sbomGenerator.GenerateFromDependencyCall.Receives.Dir).To(Equal(filepath.Join(layersDir, "composer")))
+
+		Expect(result.Layers[0].SBOM.Formats()).To(Equal([]packit.SBOMFormat{
+			{
+				Extension: sbom.Format(sbom.CycloneDXFormat).Extension(),
+				Content:   sbom.NewFormattedReader(sbom.SBOM{}, sbom.CycloneDXFormat),
+			},
+			{
+				Extension: sbom.Format(sbom.SPDXFormat).Extension(),
+				Content:   sbom.NewFormattedReader(sbom.SBOM{}, sbom.SPDXFormat),
+			},
+		}))
+
 	})
 
 	context("with build=true and launch=false", func() {
@@ -181,6 +219,12 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 						Metadata: map[string]interface{}{
 							"dependency-sha": "some-sha",
 						},
+						SBOM: sbom.Formatter{},
+					},
+				},
+				Build: packit.BuildMetadata{
+					BOM: []packit.BOMEntry{
+						{Name: "composer"},
 					},
 				},
 			}))
@@ -231,6 +275,12 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 						Metadata: map[string]interface{}{
 							"dependency-sha": "some-sha",
 						},
+						SBOM: sbom.Formatter{},
+					},
+				},
+				Launch: packit.LaunchMetadata{
+					BOM: []packit.BOMEntry{
+						{Name: "composer"},
 					},
 				},
 			}))
@@ -278,8 +328,11 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 						Metadata: map[string]interface{}{
 							"dependency-sha": "some-sha",
 						},
+						SBOM: sbom.Formatter{},
 					},
 				},
+				Launch: packit.LaunchMetadata{},
+				Build:  packit.BuildMetadata{},
 			}))
 		})
 	})
@@ -327,6 +380,16 @@ dependency-sha = "cached-sha"
 						Metadata: map[string]interface{}{
 							"dependency-sha": "cached-sha",
 						},
+					},
+				},
+				Launch: packit.LaunchMetadata{
+					BOM: []packit.BOMEntry{
+						{Name: "composer"},
+					},
+				},
+				Build: packit.BuildMetadata{
+					BOM: []packit.BOMEntry{
+						{Name: "composer"},
 					},
 				},
 			}))
