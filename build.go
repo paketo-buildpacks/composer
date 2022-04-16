@@ -1,14 +1,16 @@
 package composer
 
 import (
+	"os"
+	"path/filepath"
+	"time"
+
 	"github.com/paketo-buildpacks/packit/v2"
 	"github.com/paketo-buildpacks/packit/v2/chronos"
 	"github.com/paketo-buildpacks/packit/v2/draft"
 	"github.com/paketo-buildpacks/packit/v2/postal"
+	"github.com/paketo-buildpacks/packit/v2/sbom"
 	"github.com/paketo-buildpacks/packit/v2/scribe"
-	"os"
-	"path/filepath"
-	"time"
 )
 
 // Note that Go 1.18 requires faux 0.21.0 (https://github.com/ryanmoran/faux/releases/tag/v0.21.0)
@@ -17,11 +19,18 @@ import (
 type DependencyManager interface {
 	Resolve(path, id, version, stack string) (postal.Dependency, error)
 	Deliver(dependency postal.Dependency, cnbPath, layerPath, platformPath string) error
+	GenerateBillOfMaterials(dependencies ...postal.Dependency) []packit.BOMEntry
+}
+
+//go:generate faux --interface SBOMGenerator --output fakes/sbom_generator.go
+type SBOMGenerator interface {
+	GenerateFromDependency(dependency postal.Dependency, dir string) (sbom.SBOM, error)
 }
 
 func Build(
 	logger scribe.Emitter,
-	dependencyManager DependencyManager) packit.BuildFunc {
+	dependencyManager DependencyManager,
+	sbomGenerator SBOMGenerator) packit.BuildFunc {
 	return func(context packit.BuildContext) (packit.BuildResult, error) {
 		logger.Title("%s %s", context.BuildpackInfo.Name, context.BuildpackInfo.Version)
 		logger.Process("Resolving Composer version")
@@ -39,16 +48,7 @@ func Build(
 			return packit.BuildResult{}, err
 		}
 
-		composerLayer, err = composerLayer.Reset()
-		if err != nil {
-			return packit.BuildResult{}, err
-		}
-
-		composerLayer.Launch, composerLayer.Build = entryResolver.MergeLayerTypes("composer", context.Plan.Entries)
-
-		if !composerLayer.Launch && !composerLayer.Build {
-			composerLayer.Build = true
-		}
+		launch, build := entryResolver.MergeLayerTypes("composer", context.Plan.Entries)
 
 		// version = "" is entirely fine
 		version, _ := entry.Metadata["version"].(string)
@@ -65,9 +65,42 @@ func Build(
 		clock := chronos.DefaultClock
 
 		logger.SelectedDependency(entry, dependency, clock.Now())
+		bom := dependencyManager.GenerateBillOfMaterials(dependency)
+
+		var buildMetadata = packit.BuildMetadata{}
+		var launchMetadata = packit.LaunchMetadata{}
+		if build {
+			buildMetadata = packit.BuildMetadata{BOM: bom}
+		}
+
+		if launch {
+			launchMetadata = packit.LaunchMetadata{BOM: bom}
+		}
+
+		if cachedSHA, ok := composerLayer.Metadata["dependency-sha"].(string); ok && cachedSHA == dependency.SHA256 {
+			logger.Process("Reusing cached layer %s", composerLayer.Path)
+			logger.Break()
+
+			composerLayer.Launch, composerLayer.Build, composerLayer.Cache = launch, build, build
+
+			return packit.BuildResult{
+				Layers: []packit.Layer{
+					composerLayer,
+				},
+				Build:  buildMetadata,
+				Launch: launchMetadata,
+			}, nil
+		}
 
 		logger.Process("Executing build process")
 		logger.Subprocess("Installing Composer %s", dependency.Version)
+
+		composerLayer, err = composerLayer.Reset()
+		if err != nil {
+			return packit.BuildResult{}, err
+		}
+
+		composerLayer.Launch, composerLayer.Build, composerLayer.Cache = launch, build, build
 
 		layerBinPath := filepath.Join(composerLayer.Path, "bin")
 		err = os.MkdirAll(layerBinPath, os.ModePerm)
@@ -93,6 +126,25 @@ func Build(
 			return packit.BuildResult{}, err
 		}
 
+		logger.GeneratingSBOM(composerLayer.Path)
+		var sbomContent sbom.SBOM
+		duration, err = clock.Measure(func() error {
+			sbomContent, err = sbomGenerator.GenerateFromDependency(dependency, composerLayer.Path)
+			return err
+		})
+		if err != nil {
+			return packit.BuildResult{}, err
+		}
+
+		logger.Action("Completed in %s", duration.Round(time.Millisecond))
+		logger.Break()
+
+		logger.FormattingSBOM(context.BuildpackInfo.SBOMFormats...)
+		composerLayer.SBOM, err = sbomContent.InFormats(context.BuildpackInfo.SBOMFormats...)
+		if err != nil {
+			return packit.BuildResult{}, err
+		}
+
 		composerLayer.Metadata = map[string]interface{}{
 			"dependency-sha": dependency.SHA256,
 		}
@@ -103,6 +155,8 @@ func Build(
 			Layers: []packit.Layer{
 				composerLayer,
 			},
+			Build:  buildMetadata,
+			Launch: launchMetadata,
 		}, nil
 	}
 }

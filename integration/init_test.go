@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -18,8 +19,9 @@ import (
 
 var buildpackInfo struct {
 	Buildpack struct {
-		ID   string
-		Name string
+		ID     string
+		Name   string
+		PackId string
 	}
 	Metadata struct {
 		Dependencies []struct {
@@ -29,9 +31,16 @@ var buildpackInfo struct {
 }
 
 var buildpacks struct {
-	BuildPlan    string `json:"build-plan"`
-	PhpDist      string `json:"php-dist"`
-	ComposerDist string
+	BuildPlan       string
+	PhpDist         string
+	PhpDistOffline  string
+	Composer        string
+	ComposerOffline string
+}
+
+var integration struct {
+	BuildPlan string `json:"build-plan"`
+	PhpDist   string `json:"php-dist"`
 }
 
 func TestIntegration(t *testing.T) {
@@ -44,7 +53,7 @@ func TestIntegration(t *testing.T) {
 	file, err := os.Open("../integration.json")
 	Expect(err).NotTo(HaveOccurred())
 
-	Expect(json.NewDecoder(file).Decode(&buildpacks)).To(Succeed())
+	Expect(json.NewDecoder(file).Decode(&integration)).To(Succeed())
 	Expect(file.Close()).To(Succeed())
 
 	file, err = os.Open("../buildpack.toml")
@@ -53,20 +62,33 @@ func TestIntegration(t *testing.T) {
 	_, err = toml.NewDecoder(file).Decode(&buildpackInfo)
 	Expect(err).NotTo(HaveOccurred())
 
+	buildpackInfo.Buildpack.PackId = strings.ReplaceAll(buildpackInfo.Buildpack.ID, "/", "_")
+
 	buildpackStore := occam.NewBuildpackStore()
 
 	buildpacks.BuildPlan, err = buildpackStore.Get.
-		Execute(buildpacks.BuildPlan)
+		Execute(integration.BuildPlan)
 	Expect(err).NotTo(HaveOccurred())
 
 	buildpacks.PhpDist, err = buildpackStore.Get.
-		Execute(buildpacks.PhpDist)
+		Execute(integration.PhpDist)
+	Expect(err).NotTo(HaveOccurred())
+
+	buildpacks.PhpDistOffline, err = buildpackStore.Get.
+		WithOfflineDependencies().
+		Execute(integration.PhpDist)
 	Expect(err).NotTo(HaveOccurred())
 
 	root, err := filepath.Abs("./..")
 	Expect(err).ToNot(HaveOccurred())
 
-	buildpacks.ComposerDist, err = buildpackStore.Get.
+	buildpacks.Composer, err = buildpackStore.Get.
+		WithVersion("1.2.3").
+		Execute(root)
+	Expect(err).NotTo(HaveOccurred())
+
+	buildpacks.ComposerOffline, err = buildpackStore.Get.
+		WithOfflineDependencies().
 		WithVersion("1.2.3").
 		Execute(root)
 	Expect(err).NotTo(HaveOccurred())
@@ -75,5 +97,7 @@ func TestIntegration(t *testing.T) {
 
 	suite := spec.New("Integration", spec.Report(report.Terminal{}))
 	suite("BuildAndLaunch", testDefaultApp, spec.Parallel())
+	suite("LayerReuse", testReusingLayerRebuild)
+	suite("Offline", testOffline)
 	suite.Run(t)
 }
