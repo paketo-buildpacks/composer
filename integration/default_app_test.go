@@ -125,7 +125,7 @@ func testDefaultApp(t *testing.T, context spec.G, it spec.S) {
 
 			// check that legacy SBOM is included via metadata
 			sbomContainer, err = docker.Container.Run.
-				WithCommand("cat /layers/config/metadata.toml").
+				WithCommand("cat /layers/sbom/launch/sbom.legacy.json").
 				Execute(image.ID)
 			Expect(err).NotTo(HaveOccurred())
 
@@ -133,9 +133,7 @@ func testDefaultApp(t *testing.T, context spec.G, it spec.S) {
 				cLogs, err := docker.Container.Logs.Execute(sbomContainer.ID)
 				Expect(err).NotTo(HaveOccurred())
 				return cLogs.String()
-			}).Should(ContainSubstring(`[[bom]]
-  name = "composer"
-  [bom.metadata]`))
+			}).Should(ContainSubstring(`"name":"composer"`))
 
 			// check that all required SBOM files are present
 			Expect(filepath.Join(sbomDir, "sbom", "launch", buildpackInfo.Buildpack.PackId, "composer", "sbom.cdx.json")).To(BeARegularFile())
