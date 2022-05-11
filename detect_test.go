@@ -1,9 +1,10 @@
 package composer_test
 
 import (
-	"github.com/paketo-buildpacks/composer"
 	"os"
 	"testing"
+
+	"github.com/paketo-buildpacks/composer"
 
 	"github.com/paketo-buildpacks/packit/v2"
 	"github.com/sclevine/spec"
