@@ -1,8 +1,9 @@
 package composer
 
 import (
-	"github.com/paketo-buildpacks/packit/v2"
 	"os"
+
+	"github.com/paketo-buildpacks/packit/v2"
 )
 
 func Detect() packit.DetectFunc {

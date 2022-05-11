@@ -2,7 +2,6 @@ package composer_test
 
 import (
 	"bytes"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -341,7 +340,7 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 		it.Before(func() {
 			dependencyManager.ResolveCall.Returns.Dependency.SHA256 = "cached-sha"
 
-			err := ioutil.WriteFile(filepath.Join(layersDir, "composer.toml"),
+			err := os.WriteFile(filepath.Join(layersDir, "composer.toml"),
 				[]byte(`[metadata]
 dependency-sha = "cached-sha"
 `), os.ModePerm)
