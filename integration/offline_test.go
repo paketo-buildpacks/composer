@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/paketo-buildpacks/occam"
@@ -88,7 +89,7 @@ func testOffline(t *testing.T, context spec.G, it spec.S) {
 				Expect(err).NotTo(HaveOccurred())
 				return cLogs.String()
 			}).Should(And(
-				ContainSubstring("/layers/paketo-buildpacks_composer/composer/bin/composer"),
+				ContainSubstring(fmt.Sprintf("/layers/%s/composer/bin/composer", strings.ReplaceAll(buildpackInfo.Buildpack.ID, "/", "_"))),
 				MatchRegexp(`Composer version \d\.\d\.\d`),
 			))
 		})

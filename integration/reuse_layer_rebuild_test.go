@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/paketo-buildpacks/occam"
@@ -94,7 +95,7 @@ func testReusingLayerRebuild(t *testing.T, context spec.G, it spec.S) {
 			Expect(secondImage.Buildpacks[1].Layers).To(HaveKey("composer"))
 
 			Expect(logs.String()).NotTo(ContainSubstring("  Executing build process"))
-			Expect(logs.String()).To(ContainSubstring("Reusing cached layer /layers/paketo-buildpacks_composer/composer"))
+			Expect(logs.String()).To(ContainSubstring(fmt.Sprintf("Reusing cached layer /layers/%s/composer", strings.ReplaceAll(buildpackInfo.Buildpack.ID, "/", "_"))))
 
 			Expect(secondImage.Buildpacks[1].Layers["composer"].SHA).To(Equal(firstImage.Buildpacks[1].Layers["composer"].SHA))
 		})
