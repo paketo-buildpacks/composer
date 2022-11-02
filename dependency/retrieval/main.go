@@ -6,15 +6,16 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 
 	"github.com/joshuatcasey/libdependency/github"
 	"github.com/joshuatcasey/libdependency/retrieve"
-	"github.com/joshuatcasey/libdependency/upstream"
 	"github.com/joshuatcasey/libdependency/versionology"
 	"github.com/paketo-buildpacks/packit/v2/cargo"
 	"github.com/paketo-buildpacks/packit/v2/fs"
+	"github.com/paketo-buildpacks/packit/v2/pexec"
 	"golang.org/x/crypto/openpgp"
 )
 
@@ -122,7 +123,7 @@ func generateMetadata(versionFetcher versionology.VersionFetcher) ([]versionolog
 		CPE:            fmt.Sprintf("cpe:2.3:a:getcomposer:composer:%s:*:*:*:*:python:*:*", version),
 		Checksum:       checksum,
 		ID:             "composer",
-		Licenses:       retrieve.LookupLicenses(uri, upstream.DefaultDecompress),
+		Licenses:       retrieve.LookupLicenses(uri, pharDecompress),
 		Name:           "composer",
 		PURL:           retrieve.GeneratePURL("composer", version, sha256, uri),
 		Source:         uri,
@@ -132,6 +133,41 @@ func generateMetadata(versionFetcher versionology.VersionFetcher) ([]versionolog
 		Version:        version,
 	}
 	return versionology.NewDependencyArray(configMetadataDependency, "NONE")
+}
+
+func pharDecompress(artifact io.Reader, destination string) error {
+	destinationFile := filepath.Join(destination, "composer.phar")
+
+	artifactBytes, err := io.ReadAll(artifact)
+	if err != nil {
+		return err
+	}
+
+	err = os.WriteFile(destinationFile, artifactBytes, os.ModePerm)
+	if err != nil {
+		return err
+	}
+
+	pharPath, err := exec.LookPath("phar")
+	if err != nil {
+		return err
+	}
+
+	phar := pexec.NewExecutable(pharPath)
+	err = phar.Execute(pexec.Execution{
+		Dir: destination,
+		Args: []string{
+			"extract",
+			"-f", destinationFile,
+		},
+		Stdout: os.Stdout,
+		Stderr: os.Stderr,
+	})
+	if err != nil {
+		return err
+	}
+
+	return os.Remove(destinationFile)
 }
 
 func main() {
