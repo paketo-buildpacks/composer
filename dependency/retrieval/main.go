@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -70,7 +71,7 @@ func verifyASC(signature, target, pgpKey string) error {
 	return err
 }
 
-func generateMetadata(versionFetcher versionology.VersionFetcher) ([]versionology.Dependency, error) {
+func GenerateMetadata(versionFetcher versionology.VersionFetcher) ([]versionology.Dependency, error) {
 	version := versionFetcher.Version().String()
 
 	uri := fmt.Sprintf("https://getcomposer.org/download/%s/composer.phar", version)
@@ -123,7 +124,7 @@ func generateMetadata(versionFetcher versionology.VersionFetcher) ([]versionolog
 		CPE:            fmt.Sprintf("cpe:2.3:a:getcomposer:composer:%s:*:*:*:*:python:*:*", version),
 		Checksum:       checksum,
 		ID:             "composer",
-		Licenses:       retrieve.LookupLicenses(uri, pharDecompress),
+		Licenses:       retrieve.LookupLicenses(uri, PharDecompress),
 		Name:           "composer",
 		PURL:           retrieve.GeneratePURL("composer", version, sha256, uri),
 		Source:         uri,
@@ -135,7 +136,7 @@ func generateMetadata(versionFetcher versionology.VersionFetcher) ([]versionolog
 	return versionology.NewDependencyArray(configMetadataDependency, "NONE")
 }
 
-func pharDecompress(artifact io.Reader, destination string) error {
+func PharDecompress(artifact io.Reader, destination string) error {
 	destinationFile := filepath.Join(destination, "composer.phar")
 
 	artifactBytes, err := io.ReadAll(artifact)
@@ -154,16 +155,22 @@ func pharDecompress(artifact io.Reader, destination string) error {
 	}
 
 	phar := pexec.NewExecutable(pharPath)
+
+	var buffer *bytes.Buffer
+	buffer = bytes.NewBuffer(nil)
+
 	err = phar.Execute(pexec.Execution{
 		Dir: destination,
 		Args: []string{
 			"extract",
 			"-f", destinationFile,
 		},
-		Stdout: os.Stdout,
-		Stderr: os.Stderr,
+		Stdout: buffer,
+		Stderr: buffer,
 	})
 	if err != nil {
+		fmt.Println("Error running 'phar extract'")
+		fmt.Printf(buffer.String())
 		return err
 	}
 
@@ -173,5 +180,5 @@ func pharDecompress(artifact io.Reader, destination string) error {
 func main() {
 	getAllVersions := github.GetAllVersions(os.Getenv("GIT_TOKEN"), "composer", "composer")
 
-	retrieve.NewMetadata("composer", getAllVersions, generateMetadata)
+	retrieve.NewMetadata("composer", getAllVersions, GenerateMetadata)
 }
