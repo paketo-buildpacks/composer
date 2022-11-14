@@ -61,10 +61,10 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 		Expect(os.Chmod(composerArchive.Name(), 0777)).To(Succeed())
 
 		dependency = postal.Dependency{
-			ID:      "composer",
-			Name:    composerArchiveName,
-			Version: "composer-dependency-version",
-			SHA256:  "some-sha",
+			ID:       "composer",
+			Name:     composerArchiveName,
+			Version:  "composer-dependency-version",
+			Checksum: "some-sha",
 		}
 
 		dependencyManager.ResolveCall.Returns.Dependency = dependency
@@ -128,7 +128,7 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 					Launch:           true,
 					Cache:            true,
 					Metadata: map[string]interface{}{
-						"dependency-sha": "some-sha",
+						"dependency-checksum": "some-sha",
 					},
 					SBOM: expectedFormats,
 				},
@@ -216,7 +216,7 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 						Launch:           false,
 						Cache:            true,
 						Metadata: map[string]interface{}{
-							"dependency-sha": "some-sha",
+							"dependency-checksum": "some-sha",
 						},
 						SBOM: sbom.Formatter{},
 					},
@@ -272,7 +272,7 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 						Launch:           true,
 						Cache:            false,
 						Metadata: map[string]interface{}{
-							"dependency-sha": "some-sha",
+							"dependency-checksum": "some-sha",
 						},
 						SBOM: sbom.Formatter{},
 					},
@@ -325,7 +325,7 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 						Launch:           false,
 						Cache:            false,
 						Metadata: map[string]interface{}{
-							"dependency-sha": "some-sha",
+							"dependency-checksum": "some-sha",
 						},
 						SBOM: sbom.Formatter{},
 					},
@@ -338,11 +338,11 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 
 	context("when the layer is cached", func() {
 		it.Before(func() {
-			dependencyManager.ResolveCall.Returns.Dependency.SHA256 = "cached-sha"
+			dependencyManager.ResolveCall.Returns.Dependency.Checksum = "cached-sha"
 
 			err := os.WriteFile(filepath.Join(layersDir, "composer.toml"),
 				[]byte(`[metadata]
-dependency-sha = "cached-sha"
+dependency-checksum = "cached-sha"
 `), os.ModePerm)
 			Expect(err).NotTo(HaveOccurred())
 		})
@@ -377,7 +377,7 @@ dependency-sha = "cached-sha"
 						Launch:           true,
 						Cache:            true,
 						Metadata: map[string]interface{}{
-							"dependency-sha": "cached-sha",
+							"dependency-checksum": "cached-sha",
 						},
 					},
 				},
