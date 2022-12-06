@@ -77,7 +77,7 @@ func Build(
 			launchMetadata = packit.LaunchMetadata{BOM: bom}
 		}
 
-		if cachedSHA, ok := composerLayer.Metadata["dependency-sha"].(string); ok && cachedSHA == dependency.SHA256 {
+		if cachedChecksum, ok := composerLayer.Metadata["dependency-checksum"].(string); ok && cachedChecksum == dependency.Checksum {
 			logger.Process("Reusing cached layer %s", composerLayer.Path)
 			logger.Break()
 
@@ -146,10 +146,10 @@ func Build(
 		}
 
 		composerLayer.Metadata = map[string]interface{}{
-			"dependency-sha": dependency.SHA256,
+			"dependency-checksum": dependency.Checksum,
 		}
 
-		logger.Debug.Subprocess("Composer layer SHA256 is %s", dependency.SHA256)
+		logger.Debug.Subprocess("Composer layer Checksum is %s", dependency.Checksum)
 
 		return packit.BuildResult{
 			Layers: []packit.Layer{
