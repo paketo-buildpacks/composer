@@ -77,6 +77,7 @@ func TestIntegration(t *testing.T) {
 	Expect(err).NotTo(HaveOccurred())
 
 	buildpacks.PhpDistOffline, err = targetedBuildpackStore.Get.
+		WithOfflineDependencies().
 		Execute(integration.PhpDist)
 	Expect(err).NotTo(HaveOccurred())
 
