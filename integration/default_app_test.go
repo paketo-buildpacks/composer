@@ -56,12 +56,24 @@ func testDefaultApp(t *testing.T, context spec.G, it spec.S) {
 		})
 
 		it.After(func() {
-			Expect(docker.Container.Remove.Execute(composerVersionContainer.ID)).To(Succeed())
-			Expect(docker.Container.Remove.Execute(sbomContainer.ID)).To(Succeed())
-			Expect(docker.Image.Remove.Execute(image.ID)).To(Succeed())
-			Expect(docker.Volume.Remove.Execute(occam.CacheVolumeNames(name))).To(Succeed())
-			Expect(os.RemoveAll(source)).To(Succeed())
-			Expect(os.RemoveAll(sbomDir)).To(Succeed())
+			if composerVersionContainer.ID != "" {
+				Expect(docker.Container.Remove.Execute(composerVersionContainer.ID)).To(Succeed())
+			}
+			if sbomContainer.ID != "" {
+				Expect(docker.Container.Remove.Execute(sbomContainer.ID)).To(Succeed())
+			}
+			if image.ID != "" {
+				Expect(docker.Image.Remove.Execute(image.ID)).To(Succeed())
+			}
+			if name != "" {
+				Expect(docker.Volume.Remove.Execute(occam.CacheVolumeNames(name))).To(Succeed())
+			}
+			if source != "" {
+				Expect(os.RemoveAll(source)).To(Succeed())
+			}
+			if sbomDir != "" {
+				Expect(os.RemoveAll(sbomDir)).To(Succeed())
+			}
 		})
 
 		it("builds and puts `composer` on the $PATH", func() {
@@ -90,7 +102,7 @@ func testDefaultApp(t *testing.T, context spec.G, it spec.S) {
 				`      BP_COMPOSER_VERSION -> "*"`,
 				`      integration-test    -> "2.*"`,
 				"",
-				MatchRegexp(`Selected composer version \(using BP_COMPOSER_VERSION\): 2\.\d\.\d`),
+				MatchRegexp(`Selected composer version \(using BP_COMPOSER_VERSION\): 2\.\d+\.\d+`),
 			))
 			Expect(logs).To(ContainLines(
 				"  Executing build process",
@@ -109,7 +121,7 @@ func testDefaultApp(t *testing.T, context spec.G, it spec.S) {
 				return cLogs.String()
 			}).Should(And(
 				ContainSubstring(fmt.Sprintf("/layers/%s/composer/bin/composer", strings.ReplaceAll(buildpackInfo.Buildpack.ID, "/", "_"))),
-				MatchRegexp(`Composer version \d\.\d\.\d`),
+				MatchRegexp(`Composer version \d+\.\d+\.\d+`),
 			))
 
 			// SBOM checks

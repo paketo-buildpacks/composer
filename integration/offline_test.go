@@ -71,7 +71,7 @@ func testOffline(t *testing.T, context spec.G, it spec.S) {
 				"    Candidate version sources (in priority order):",
 				`      integration-test -> "2.*"`,
 				"",
-				MatchRegexp(`Selected composer version \(using integration-test\): 2\.\d\.\d`),
+				MatchRegexp(`Selected composer version \(using integration-test\): 2\.\d+\.\d+`),
 			))
 			Expect(logs).To(ContainLines(
 				"  Executing build process",
@@ -90,7 +90,7 @@ func testOffline(t *testing.T, context spec.G, it spec.S) {
 				return cLogs.String()
 			}).Should(And(
 				ContainSubstring(fmt.Sprintf("/layers/%s/composer/bin/composer", strings.ReplaceAll(buildpackInfo.Buildpack.ID, "/", "_"))),
-				MatchRegexp(`Composer version \d\.\d\.\d`),
+				MatchRegexp(`Composer version \d+\.\d+\.\d+`),
 			))
 		})
 	})
