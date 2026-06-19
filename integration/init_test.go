@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -65,16 +66,17 @@ func TestIntegration(t *testing.T) {
 	buildpackInfo.Buildpack.PackId = strings.ReplaceAll(buildpackInfo.Buildpack.ID, "/", "_")
 
 	buildpackStore := occam.NewBuildpackStore()
+	targetedBuildpackStore := buildpackStore.WithTarget("linux/" + runtime.GOARCH)
 
-	buildpacks.BuildPlan, err = buildpackStore.Get.
+	buildpacks.BuildPlan, err = targetedBuildpackStore.Get.
 		Execute(integration.BuildPlan)
 	Expect(err).NotTo(HaveOccurred())
 
-	buildpacks.PhpDist, err = buildpackStore.Get.
+	buildpacks.PhpDist, err = targetedBuildpackStore.Get.
 		Execute(integration.PhpDist)
 	Expect(err).NotTo(HaveOccurred())
 
-	buildpacks.PhpDistOffline, err = buildpackStore.Get.
+	buildpacks.PhpDistOffline, err = targetedBuildpackStore.Get.
 		WithOfflineDependencies().
 		Execute(integration.PhpDist)
 	Expect(err).NotTo(HaveOccurred())
