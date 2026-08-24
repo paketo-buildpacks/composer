@@ -4,6 +4,8 @@ This buildpack provides the [composer](https://getcomposer.org/) dependency by i
 onto the build image `$PATH` which makes it available to subsequent buildpacks.
 This buildpack will not issue commands to `composer` (such as `composer install`).
 
+The buildpack supports Paketo Jammy, Noble, and Resolute builders.
+
 A usage example can be found in the
 [`samples` repository under the `php/composer` directory](https://github.com/paketo-buildpacks/samples/tree/main/php/composer).
 
