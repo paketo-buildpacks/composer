@@ -124,7 +124,7 @@ func GenerateMetadata(versionFetcher versionology.VersionFetcher) ([]versionolog
 		CPE:            fmt.Sprintf("cpe:2.3:a:getcomposer:composer:%s:*:*:*:*:python:*:*", version),
 		Checksum:       checksum,
 		ID:             "composer",
-		Licenses:       retrieve.LookupLicenses(uri, PharDecompress),
+		Licenses:       []interface{}{"MIT"}, // hardcoded: detection fuzzy-matches composer's MIT text against unrelated licenses
 		Name:           "composer",
 		PURL:           retrieve.GeneratePURL("composer", version, sha256, uri),
 		Source:         uri,
@@ -170,7 +170,7 @@ func PharDecompress(artifact io.Reader, destination string) error {
 	})
 	if err != nil {
 		fmt.Println("Error running 'phar extract'")
-		fmt.Printf(buffer.String())
+		fmt.Print(buffer.String())
 		return err
 	}
 
