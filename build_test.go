@@ -2,10 +2,10 @@ package composer_test
 
 import (
 	"bytes"
+	"encoding/json"
 	"io"
 	"os"
 	"path/filepath"
-	"regexp"
 	"testing"
 
 	. "github.com/onsi/gomega"
@@ -99,6 +99,11 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 	})
 
 	it("returns a result that installs composer", func() {
+		fixtureDependency := postal.Dependency{Name: "sbom-fixture-composer", Version: "1.2.3"}
+		fixtureSBOM, err := sbom.GenerateFromDependency(fixtureDependency, filepath.Join(layersDir, "composer"))
+		Expect(err).NotTo(HaveOccurred())
+		sbomGenerator.GenerateFromDependencyCall.Returns.SBOM = fixtureSBOM
+
 		result, err := build(packit.BuildContext{
 			WorkingDir: workingDir,
 			CNBPath:    cnbDir,
@@ -114,7 +119,7 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 		})
 		Expect(err).NotTo(HaveOccurred())
 
-		expectedFormats, err := sbom.SBOM{}.InFormats(sbom.CycloneDXFormat, sbom.SPDXFormat)
+		expectedFormats, err := fixtureSBOM.InFormats(sbom.CycloneDXFormat, sbom.SPDXFormat)
 		Expect(err).NotTo(HaveOccurred())
 
 		Expect(result).To(Equal(packit.BuildResult{
@@ -164,71 +169,28 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 		Expect(sbomGenerator.GenerateFromDependencyCall.Receives.Dir).To(Equal(filepath.Join(layersDir, "composer")))
 
 		layer := result.Layers[0]
-		Expect(layer.SBOM.Formats()).To(HaveLen(2))
-		cdx := layer.SBOM.Formats()[0]
-		spdx := layer.SBOM.Formats()[1]
+		var extensions []string
+		for _, format := range layer.SBOM.Formats() {
+			extensions = append(extensions, format.Extension)
+			content, err := io.ReadAll(format.Content)
+			Expect(err).NotTo(HaveOccurred())
+			var document map[string]interface{}
+			Expect(json.Unmarshal(content, &document)).To(Succeed())
 
-		Expect(cdx.Extension).To(Equal("cdx.json"))
-		content, err := io.ReadAll(cdx.Content)
-		Expect(err).NotTo(HaveOccurred())
-		Expect(string(content)).To(MatchJSON(`{
-			"$schema": "http://cyclonedx.org/schema/bom-1.3.schema.json",
-			"bomFormat": "CycloneDX",
-			"metadata": {
-				"tools": [
-					{
-						"name": "",
-						"vendor": "anchore"
-					}
-				]
-			},
-			"specVersion": "1.3",
-			"version": 1
-		}`))
-
-		Expect(spdx.Extension).To(Equal("spdx.json"))
-		content, err = io.ReadAll(spdx.Content)
-		Expect(err).NotTo(HaveOccurred())
-
-		versionPattern := regexp.MustCompile(`"licenseListVersion": "\d+\.\d+"`)
-		contentReplaced := versionPattern.ReplaceAllString(string(content), `"licenseListVersion": "x.x"`)
-		uuidRegex := regexp.MustCompile(`[0-9a-fA-F]{8}-([0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}`)
-		contentReplaced = uuidRegex.ReplaceAllString(contentReplaced, "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx")
-
-		Expect(string(contentReplaced)).To(MatchJSON(`{
-			"SPDXID": "SPDXRef-DOCUMENT",
-			"creationInfo": {
-				"created": "0001-01-01T00:00:00Z",
-				"creators": [
-					"Organization: Anchore, Inc",
-					"Tool: -"
-				],
-				"licenseListVersion": "x.x"
-			},
-			"dataLicense": "CC0-1.0",
-			"documentNamespace": "https://paketo.io/unknown-source-type/unknown-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
-			"name": "unknown",
-			"packages": [
-				{
-					"SPDXID": "SPDXRef-DocumentRoot-Unknown-",
-					"copyrightText": "NOASSERTION",
-					"downloadLocation": "NOASSERTION",
-					"filesAnalyzed": false,
-					"licenseConcluded": "NOASSERTION",
-					"licenseDeclared": "NOASSERTION",
-					"name": "",
-					"supplier": "NOASSERTION"
-				}
-			],
-			"relationships": [
-				{
-					"relatedSpdxElement": "SPDXRef-DocumentRoot-Unknown-",
-					"relationshipType": "DESCRIBES",
-					"spdxElementId": "SPDXRef-DOCUMENT"
-				}
-			],
-			"spdxVersion": "SPDX-2.2"
-		}`))
+			switch format.Extension {
+			case "cdx.json":
+				Expect(document).To(HaveKeyWithValue("components", ContainElement(And(
+					HaveKeyWithValue("name", fixtureDependency.Name),
+					HaveKeyWithValue("version", fixtureDependency.Version),
+				))))
+			case "spdx.json":
+				Expect(document).To(HaveKeyWithValue("packages", ContainElement(And(
+					HaveKeyWithValue("name", fixtureDependency.Name),
+					HaveKeyWithValue("versionInfo", fixtureDependency.Version),
+				))))
+			}
+		}
+		Expect(extensions).To(ConsistOf("cdx.json", "spdx.json"))
 
 	})
 
