@@ -19,19 +19,6 @@ api = "0.7"
     composer = "*"
 
   [[metadata.dependencies]]
-    checksum = "sha256:9674f12a2a181100d889ebfd0b4510805b3e94cea57869b14b383753d602599b"
-    cpe = "cpe:2.3:a:getcomposer:composer:2.11.0:*:*:*:*:python:*:*"
-    id = "composer"
-    licenses = ["MIT"]
-    name = "composer"
-    purl = "pkg:generic/composer@2.11.0?checksum=9674f12a2a181100d889ebfd0b4510805b3e94cea57869b14b383753d602599b&download_url=https://getcomposer.org/download/2.11.0/composer.phar"
-    source = "https://getcomposer.org/download/2.11.0/composer.phar"
-    source-checksum = "sha256:9674f12a2a181100d889ebfd0b4510805b3e94cea57869b14b383753d602599b"
-    stacks = ["*"]
-    uri = "https://getcomposer.org/download/2.11.0/composer.phar"
-    version = "2.11.0"
-
-  [[metadata.dependencies]]
     checksum = "sha256:6f1b891e1d4927d62740276c540fb490e47689e19e102c49e8da849794882f8c"
     cpe = "cpe:2.3:a:getcomposer:composer:2.11.1:*:*:*:*:python:*:*"
     id = "composer"
@@ -43,6 +30,19 @@ api = "0.7"
     stacks = ["*"]
     uri = "https://getcomposer.org/download/2.11.1/composer.phar"
     version = "2.11.1"
+
+  [[metadata.dependencies]]
+    checksum = "sha256:dd158c0afd41d15fac89e1b4e47b5d42911fe316c3687cd5edac98319b25d028"
+    cpe = "cpe:2.3:a:getcomposer:composer:2.11.2:*:*:*:*:python:*:*"
+    id = "composer"
+    licenses = ["MIT"]
+    name = "composer"
+    purl = "pkg:generic/composer@2.11.2?checksum=dd158c0afd41d15fac89e1b4e47b5d42911fe316c3687cd5edac98319b25d028&download_url=https://getcomposer.org/download/2.11.2/composer.phar"
+    source = "https://getcomposer.org/download/2.11.2/composer.phar"
+    source-checksum = "sha256:dd158c0afd41d15fac89e1b4e47b5d42911fe316c3687cd5edac98319b25d028"
+    stacks = ["*"]
+    uri = "https://getcomposer.org/download/2.11.2/composer.phar"
+    version = "2.11.2"
 
   [[metadata.dependency-constraints]]
     constraint = "2.*"
