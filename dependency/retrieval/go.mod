@@ -9,7 +9,7 @@ require (
 	github.com/paketo-buildpacks/occam v0.31.4
 	github.com/paketo-buildpacks/packit/v2 v2.26.0
 	github.com/sclevine/spec v1.4.0
-	golang.org/x/crypto v0.58.0
+	golang.org/x/crypto/openpgp v0.1.0-deprecated
 )
 
 require (
@@ -94,6 +94,7 @@ require (
 	go.opentelemetry.io/otel/metric v1.47.0 // indirect
 	go.opentelemetry.io/otel/trace v1.47.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.6 // indirect
+	golang.org/x/crypto v0.59.0 // indirect
 	golang.org/x/exp v0.0.0-20260410095643-746e56fc9e2f // indirect
 	golang.org/x/net v0.62.0 // indirect
 	golang.org/x/sys v0.50.0 // indirect
